@@ -2,15 +2,9 @@ pipeline {
     agent any
 
     environment {
-        APP_NAME = "ebanking-app"
-        IMAGE_NAME = "ebanking-springboot"
-        DOCKERHUB_USER = "your_dockerhub_username"
-        DOCKER_IMAGE = "${DOCKERHUB_USER}/${IMAGE_NAME}:${BUILD_NUMBER}"
-    }
-
-    tools {
-        maven 'maven3'
-        jdk 'jdk17'
+        APP_NAME = "ebanking"
+        DEPLOY_PATH = "/opt/ebanking"
+        JAR_NAME = "ebanking.jar"
     }
 
     stages {
@@ -18,54 +12,48 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 git branch: 'main',
-                url: 'https://github.com/umachandrashekhar3939/ebanking_springboot.git'
+                    url: 'https://github.com/umachandrashekhar3939/ebanking_springboot.git'
             }
         }
 
-        stage('Build & Test') {
+        stage('Build Application') {
             steps {
                 sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Docker Build') {
+        stage('Stop Old Application') {
             steps {
-                sh "docker build -t ${DOCKER_IMAGE} ."
+                sh '''
+                    pkill -f $JAR_NAME || true
+                '''
             }
         }
 
-        stage('Docker Push') {
+        stage('Deploy Application') {
             steps {
-                withCredentials([usernamePassword(
-                        credentialsId: 'dockerhub-creds',
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS')]) {
-
-                    sh """
-                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    docker push ${DOCKER_IMAGE}
-                    """
-                }
+                sh '''
+                    mkdir -p $DEPLOY_PATH
+                    cp target/*.jar $DEPLOY_PATH/$JAR_NAME
+                '''
             }
         }
 
-        stage('Deploy Container') {
+        stage('Start Application') {
             steps {
-                sh """
-                docker rm -f ${APP_NAME} || true
-                docker run -d --name ${APP_NAME} -p 8081:8080 ${DOCKER_IMAGE}
-                """
+                sh '''
+                    nohup java -jar $DEPLOY_PATH/$JAR_NAME > $DEPLOY_PATH/app.log 2>&1 &
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "Build & Deployment Successful"
+            echo "ebanking application deployed successfully!"
         }
         failure {
-            echo "Pipeline Failed"
+            echo "Build or deployment failed"
         }
     }
 }
-
