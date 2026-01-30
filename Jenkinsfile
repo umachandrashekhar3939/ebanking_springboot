@@ -1,11 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        maven 'maven3'
-        jdk 'jdk17'
-    }
-
     environment {
         APP_NAME = "ebanking"
         DEPLOY_PATH = "/opt/ebanking"
@@ -23,19 +18,26 @@ pipeline {
 
         stage('Build Application') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                sh '''
+                    echo "Building Spring Boot application..."
+                    mvn clean package -DskipTests
+                '''
             }
         }
 
         stage('Stop Old Application') {
             steps {
-                sh 'pkill -f $JAR_NAME || true'
+                sh '''
+                    echo "Stopping old application..."
+                    pkill -f $JAR_NAME || true
+                '''
             }
         }
 
         stage('Deploy Application') {
             steps {
                 sh '''
+                    echo "Deploying application..."
                     mkdir -p $DEPLOY_PATH
                     cp target/*.jar $DEPLOY_PATH/$JAR_NAME
                 '''
@@ -45,9 +47,19 @@ pipeline {
         stage('Start Application') {
             steps {
                 sh '''
+                    echo "Starting application..."
                     nohup java -jar $DEPLOY_PATH/$JAR_NAME > $DEPLOY_PATH/app.log 2>&1 &
                 '''
             }
+        }
+    }
+
+    post {
+        success {
+            echo "ebanking application deployed successfully"
+        }
+        failure {
+            echo "Build or deployment failed"
         }
     }
 }
