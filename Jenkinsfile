@@ -1,6 +1,11 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'maven3'
+        jdk 'jdk17'
+    }
+
     environment {
         APP_NAME = "ebanking"
         DEPLOY_PATH = "/opt/ebanking"
@@ -24,9 +29,7 @@ pipeline {
 
         stage('Stop Old Application') {
             steps {
-                sh '''
-                    pkill -f $JAR_NAME || true
-                '''
+                sh 'pkill -f $JAR_NAME || true'
             }
         }
 
@@ -45,15 +48,6 @@ pipeline {
                     nohup java -jar $DEPLOY_PATH/$JAR_NAME > $DEPLOY_PATH/app.log 2>&1 &
                 '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo "ebanking application deployed successfully!"
-        }
-        failure {
-            echo "Build or deployment failed"
         }
     }
 }
